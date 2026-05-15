@@ -1,0 +1,167 @@
+// =====================================================
+// Schema de Prisma para Natu Love
+// =====================================================
+// Para cambiar de SQLite a PostgreSQL en producción:
+//   1. Cambia provider = "sqlite" por provider = "postgresql"
+//   2. Cambia la DATABASE_URL en .env
+//   3. Ejecuta: npx prisma migrate dev
+// =====================================================
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+// =====================================================
+// MATERIAS PRIMAS (Requisito 1F)
+// =====================================================
+model MateriaPrima {
+  id                  String    @id @default(cuid())
+  nombre              String    @unique
+  unidad              String    // "kg" | "g" | "L" | "ml" | "und"
+  precioActual        Float
+  proveedor           String
+  fechaActualizacion  DateTime  @default(now()) @updatedAt
+  createdAt           DateTime  @default(now())
+
+  // Relaciones
+  ingredientes        Ingrediente[]
+  historialPrecios    HistorialPrecio[]
+  stockInsumos        StockInsumo[]
+
+  @@map("materia_prima")
+}
+
+// =====================================================
+// HISTORIAL DE PRECIOS (Requisito 6F)
+// =====================================================
+model HistorialPrecio {
+  id              String        @id @default(cuid())
+  materiaPrimaId  String
+  precio          Float
+  fecha           DateTime      @default(now())
+
+  materiaPrima    MateriaPrima  @relation(fields: [materiaPrimaId], references: [id], onDelete: Cascade)
+
+  @@index([materiaPrimaId, fecha])
+  @@map("historial_precio")
+}
+
+// =====================================================
+// PRODUCTOS
+// =====================================================
+model Producto {
+  id            String        @id @default(cuid())
+  nombre        String        @unique
+  descripcion   String?
+  stockMinimo   Int           @default(10)
+  activo        Boolean       @default(true)
+
+  costoManoObra  Float    @default(0) @map("costo_mano_obra")
+  costoFijo      Float    @default(0) @map("costo_fijo")
+  costoVariable  Float    @default(0) @map("costo_variable")
+
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
+
+  receta        Ingrediente[]
+  stockProducto StockProducto[]
+  movimientos   Movimiento[]
+
+  @@map("producto")
+}
+
+// =====================================================
+// INGREDIENTES (tabla intermedia Producto ↔ MateriaPrima)
+// Define la RECETA (Requisito 3F)
+// =====================================================
+model Ingrediente {
+  id              String        @id @default(cuid())
+  productoId      String
+  materiaPrimaId  String
+  cantidad        Float
+  unidad          String        // unidad en la que se mide la receta
+
+  producto        Producto      @relation(fields: [productoId], references: [id], onDelete: Cascade)
+  materiaPrima    MateriaPrima  @relation(fields: [materiaPrimaId], references: [id], onDelete: Restrict)
+  // onDelete: Restrict implementa Restricción 2R
+  // (no se puede borrar un insumo si está en una receta)
+
+  @@unique([productoId, materiaPrimaId])
+  @@map("ingrediente")
+}
+
+// =====================================================
+// STOCK DE PRODUCTOS POR UBICACIÓN (Requisito 4F)
+// =====================================================
+model StockProducto {
+  id          String    @id @default(cuid())
+  productoId  String
+  ubicacion   String    // "planta" | "unicentro"
+  cantidad    Int       @default(0)
+  updatedAt   DateTime  @updatedAt
+
+  producto    Producto  @relation(fields: [productoId], references: [id], onDelete: Cascade)
+
+  @@unique([productoId, ubicacion])
+  @@map("stock_producto")
+}
+
+// =====================================================
+// STOCK DE INSUMOS POR UBICACIÓN
+// =====================================================
+model StockInsumo {
+  id              String        @id @default(cuid())
+  materiaPrimaId  String
+  ubicacion       String        // "planta" | "unicentro"
+  cantidad        Float         @default(0)
+  updatedAt       DateTime      @updatedAt
+
+  materiaPrima    MateriaPrima  @relation(fields: [materiaPrimaId], references: [id], onDelete: Cascade)
+
+  @@unique([materiaPrimaId, ubicacion])
+  @@map("stock_insumo")
+}
+
+// =====================================================
+// MOVIMIENTOS DE INVENTARIO (Requisito 5F)
+// =====================================================
+model Movimiento {
+  id            String    @id @default(cuid())
+  tipo          String    // "entrada" | "salida" | "traslado" | "produccion"
+  productoId    String?
+  materiaPrimaId String?
+  cantidad      Float
+  unidad        String
+  ubicacion     String?   // "planta" | "unicentro"
+  ubicacionDestino String? // usado solo en traslados
+  descripcion   String?
+  fecha         DateTime  @default(now())
+  usuarioId     String?
+
+  producto      Producto? @relation(fields: [productoId], references: [id], onDelete: SetNull)
+
+  @@index([fecha])
+  @@index([tipo])
+  @@map("movimiento")
+}
+
+// =====================================================
+// USUARIOS - vinculados a Supabase Auth
+// El id es el mismo UUID que Supabase Auth genera
+// =====================================================
+model Usuario {
+  id          String    @id  // UUID de Supabase Auth
+  email       String    @unique
+  nombre      String
+  rol         String    @default("empleado") // "admin" | "empleado"
+  activo      Boolean   @default(true)
+  createdAt   DateTime  @default(now())
+
+  @@map("usuario")
+}
