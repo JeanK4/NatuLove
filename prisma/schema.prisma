@@ -72,6 +72,8 @@ model Producto {
   receta        Ingrediente[]
   stockProducto StockProducto[]
   movimientos   Movimiento[]
+  recetasComoBase         RecetaProducto[] @relation("ProductoBase")
+  recetasComoIngrediente  RecetaProducto[] @relation("ProductoIngrediente")
 
   @@map("producto")
 }
@@ -164,4 +166,19 @@ model Usuario {
   createdAt   DateTime  @default(now())
 
   @@map("usuario")
+}
+
+model RecetaProducto {
+  id                    String   @id @default(cuid())
+  productoId            String
+  ingredienteProductoId String
+  cantidad              Float
+  unidad                String   @default("und")
+  createdAt             DateTime @default(now())
+
+  producto             Producto @relation("ProductoBase", fields: [productoId], references: [id], onDelete: Cascade)
+  ingredienteProducto  Producto @relation("ProductoIngrediente", fields: [ingredienteProductoId], references: [id], onDelete: Restrict)
+
+  @@unique([productoId, ingredienteProductoId])
+  @@map("receta_producto")
 }

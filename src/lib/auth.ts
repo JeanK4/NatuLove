@@ -15,6 +15,8 @@ export interface UsuarioActual {
  * Obtiene el usuario actual desde Supabase Auth + datos en la DB.
  * Retorna null si no hay sesión.
  */
+
+
 export async function getUsuarioActual(): Promise<UsuarioActual | null> {
   const supabase = createSupabaseServerClient();
   const {
@@ -30,15 +32,29 @@ export async function getUsuarioActual(): Promise<UsuarioActual | null> {
 
   // Si no existe el perfil aún (primer login), lo crea
   if (!perfil) {
-    perfil = await prisma.usuario.create({
-      data: {
-        id: user.id,
-        email: user.email ?? "",
-        nombre: user.user_metadata?.nombre ?? user.email?.split("@")[0] ?? "Usuario",
-        rol: "empleado", // por defecto - el primer admin se cambia manualmente
-      },
-    });
+  perfil = await prisma.usuario.findUnique({
+    where: {
+      email: user.email!,
+    },
+  });
+
+  if (perfil) {
+    throw new Error(
+      `Existe un usuario con email ${user.email} pero con un UUID diferente al de Supabase.`
+    );
   }
+console.log("USER COMPLETO:", JSON.stringify(user, null, 2));
+console.log("USER_METADATA:", user.user_metadata);
+console.log("NOMBRE:", user.user_metadata?.nombre);
+  perfil = await prisma.usuario.create({
+    data: {
+      id: user.id,
+      email: user.email!,
+      nombre: user.user_metadata?.nombre ?? user.email?.split("@")[0] ?? "Usuario",
+      rol: "empleado",
+    },
+  });
+}
 
   return {
     id: perfil.id,

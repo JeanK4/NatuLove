@@ -58,11 +58,24 @@ export async function getHistorialPrecios(materiaPrimaId: string): Promise<Histo
 // ---------- Productos ----------
 export async function getProductos(): Promise<Producto[]> {
   const productos = await prisma.producto.findMany({
-    where: { activo: true },
-    include: { receta: { include: { materiaPrima: true } } },
-    orderBy: { nombre: "asc" },
-  });
- 
+  where: { activo: true },
+  include: {
+    receta: {
+      include: {
+        materiaPrima: true,
+      },
+    },
+    recetasComoBase: {
+      include: {
+        ingredienteProducto: true,
+      },
+    },
+  },
+  orderBy: {
+    nombre: "asc",
+  },
+});
+
   return productos.map((p) => {
     const receta = p.receta.map((ing) => ({
       materiaPrimaId: ing.materiaPrimaId,
@@ -71,15 +84,27 @@ export async function getProductos(): Promise<Producto[]> {
       unidad: ing.unidad as UnidadMedida,
       precioUnitario: ing.materiaPrima.precioActual,
     }));
- 
+
+    const recetaProductos = p.recetasComoBase.map((r) => ({
+      id: r.id,
+      productoId: r.productoId,
+      ingredienteProductoId: r.ingredienteProductoId,
+      ingredienteNombre: r.ingredienteProducto.nombre,
+      cantidad: r.cantidad,
+      unidad: r.unidad as UnidadMedida,
+    }));
+
     const costoInsumos = receta.reduce(
       (acc, ing) => acc + ing.cantidad * ing.precioUnitario,
       0
     );
- 
+
     const costoActual =
-      costoInsumos + p.costoManoObra + p.costoFijo + p.costoVariable;
- 
+      costoInsumos +
+      p.costoManoObra +
+      p.costoFijo +
+      p.costoVariable;
+
     return {
       id: p.id,
       nombre: p.nombre,
@@ -92,17 +117,32 @@ export async function getProductos(): Promise<Producto[]> {
       variacionMensual: 0,
       stockMinimo: p.stockMinimo,
       receta,
+      recetaProductos,
     };
   });
 }
  
-export async function getProductoById(id: string): Promise<Producto | null> {
+export async function getProductoById(
+  id: string
+): Promise<Producto | null> {
   const p = await prisma.producto.findUnique({
     where: { id },
-    include: { receta: { include: { materiaPrima: true } } },
+    include: {
+      receta: {
+        include: {
+          materiaPrima: true,
+        },
+      },
+      recetasComoBase: {
+        include: {
+          ingredienteProducto: true,
+        },
+      },
+    },
   });
+
   if (!p) return null;
- 
+
   const receta = p.receta.map((ing) => ({
     materiaPrimaId: ing.materiaPrimaId,
     nombre: ing.materiaPrima.nombre,
@@ -110,13 +150,27 @@ export async function getProductoById(id: string): Promise<Producto | null> {
     unidad: ing.unidad as UnidadMedida,
     precioUnitario: ing.materiaPrima.precioActual,
   }));
+
+  const recetaProductos = p.recetasComoBase.map((r) => ({
+    id: r.id,
+    productoId: r.productoId,
+    ingredienteProductoId: r.ingredienteProductoId,
+    ingredienteNombre: r.ingredienteProducto.nombre,
+    cantidad: r.cantidad,
+    unidad: r.unidad as UnidadMedida,
+  }));
+
   const costoInsumos = receta.reduce(
     (acc, ing) => acc + ing.cantidad * ing.precioUnitario,
     0
   );
+
   const costoActual =
-    costoInsumos + p.costoManoObra + p.costoFijo + p.costoVariable;
- 
+    costoInsumos +
+    p.costoManoObra +
+    p.costoFijo +
+    p.costoVariable;
+
   return {
     id: p.id,
     nombre: p.nombre,
@@ -129,6 +183,7 @@ export async function getProductoById(id: string): Promise<Producto | null> {
     variacionMensual: 0,
     stockMinimo: p.stockMinimo,
     receta,
+    recetaProductos,
   };
 }
  

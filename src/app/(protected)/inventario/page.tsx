@@ -5,12 +5,16 @@ import {
   AlertTriangle,
 } from "lucide-react";
 import { PageHeader } from "@/components/PageHeader";
+import { ReempaqueButton } from "@/components/ReempaqueButton";
 import { TransferirStockButton } from "@/components/TransferirStockButton";
-import { getStockProductos } from "@/lib/services";
+import { getProductos, getStockProductos } from "@/lib/services";
 import { formatNumber } from "@/lib/format";
 
 export default async function InventarioPage() {
-  const stock = await getStockProductos();
+  const [stock, productos] = await Promise.all([
+  getStockProductos(),
+  getProductos(),
+]);
 
   const totalPlanta = stock.reduce((acc, s) => acc + s.stockPlanta, 0);
   const totalUnicentro = stock.reduce((acc, s) => acc + s.stockUnicentro, 0);
@@ -23,8 +27,13 @@ export default async function InventarioPage() {
       <PageHeader
         title="Control de Inventario"
         subtitle="Gestión de stock entre Planta de Producción y Unicentro"
-        actions={<TransferirStockButton stock={stock} />}
-      />
+        actions={
+          <div className="flex items-center gap-3">
+            <ReempaqueButton productos={productos} />
+            <TransferirStockButton stock={stock} />
+          </div>
+  }
+/>
 
       {/* Resumen */}
       <div className="mt-6 grid grid-cols-1 gap-4 md:grid-cols-3">

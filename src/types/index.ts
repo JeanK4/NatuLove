@@ -39,14 +39,15 @@ export interface Producto {
   id: string;
   nombre: string;
   descripcion?: string;
-  costoActual: number;       // total = insumos + manoObra + fijo + variable
-  costoInsumos: number;      // solo insumos (calculado de la receta)
+  costoActual: number;
+  costoInsumos: number;
   costoManoObra: number;
   costoFijo: number;
   costoVariable: number;
   variacionMensual: number;
   stockMinimo: number;
-  receta: Ingrediente[];
+  receta: Ingrediente[];            // ingredientes que son MateriaPrima
+  recetaProductos: RecetaProducto[]; // ingredientes que son otros Productos
 }
  
 // ----------- Inventario -----------
@@ -84,4 +85,13 @@ export interface KpiPanel {
 export interface PuntoEvolucionCostos {
   mes: string;
   costo: number;
+}
+
+export interface RecetaProducto {
+  id: string;
+  productoId: string;
+  ingredienteProductoId: string;
+  ingredienteNombre: string;
+  cantidad: number;
+  unidad: UnidadMedida;
 }
